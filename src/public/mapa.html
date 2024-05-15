@@ -1,0 +1,64 @@
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Ubicación en tiempo real</title>
+    <script src="/socket.io/socket.io.js"></script>
+  </head>
+  <body>
+    <div id="map" style="height: 100vh; width: 100%"></div>
+    <script>
+
+var socket = io.connect('http://192.168.16.134:3000/');
+var map, marker;
+
+function initMap() {
+
+
+
+
+
+
+
+    
+  var ubicacionInicial = {lat: -34.397, lng: 150.644}; // Puedes cambiar esto por una ubicación inicial
+
+  map = new google.maps.Map(document.getElementById('map'), {
+    zoom: 16,
+    center: ubicacionInicial
+  });
+
+  marker = new google.maps.Marker({
+    position: ubicacionInicial,
+    map: map
+  });
+}
+
+socket.on('ubi:show', function (ubicaciones) {
+  ubicaciones.forEach(ubicacion => {
+    var latitud = parseFloat(ubicacion.Latitude);
+    var longitud = parseFloat(ubicacion.Longitude);
+
+    var nuevaUbicacion = {lat: latitud, lng: longitud};
+
+    // Actualizar la posición del marcador
+    marker.setPosition(nuevaUbicacion);
+
+    // Centrar el mapa en la nueva ubicación
+    map.setCenter(nuevaUbicacion);
+
+  });
+});
+
+
+
+
+
+
+
+    </script>
+    
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap" async defer loading="async"></script>
+  </body>
+</html>
