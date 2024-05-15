@@ -204,14 +204,24 @@ async function calcularTiempoDeLlegada(origen, destino) {
         // Verificar si se encontró una ruta válida
         if (response.json.status === 'OK') {
             const tiempoEstimado = response.json.routes[0].legs[0].duration.text;
-            console.log(`Tiempo estimado de llegada: ${tiempoEstimado}`);
+            // Emitir el tiempo estimado a través del socket
+            io.sockets.emit("tiempoEstimado", tiempoEstimado);
+
+            console.log("El tiempo estimado es " + tiempoEstimado)
+
         } else {
             console.error('No se encontró una ruta válida.');
+            // Emitir el error a través del socket
+            io.sockets.emit("errorRuta", 'No se encontró una ruta válida.');
+            console.error('No se encontró una ruta válida.')
         }
     } catch (error) {
         console.error('Error al calcular el tiempo de llegada:', error);
+        // Emitir el error a través del socket
+        io.sockets.emit("errorRuta", error.message);
     }
 }
+
 
 async function TomarYEnviarUbicaciones() {
     try {
