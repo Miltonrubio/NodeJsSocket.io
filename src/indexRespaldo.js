@@ -9,11 +9,46 @@ import { log } from "console";
 const connection = require("./bdconfig");
 const session = require('express-session');
 
+
+
+
+
 const app = express();
 const httpServer = http.createServer(app);
 const io = new WebSocketServer(httpServer);
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
+
+
+/*
+
+app.use(session({
+  secret: 'secreto',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000
+  }
+}));
+
+
+
+
+
+
+app.get('/cerrar-sesion', (req, res) => {
+  // Destruir la sesión
+  req.session.destroy(err => {
+    if (err) {
+      console.error(err);
+      res.send('Error al cerrar sesión');
+    } else {
+      res.send('Sesión cerrada');
+    }
+  });
+});
+
+*/
 
 app.use(express.static(__dirname + "/public"));
 
@@ -24,9 +59,28 @@ app.post('/inicio', (req, res) => {
   res.redirect('/');
 });
 
+/*
+
+function validarSesion(req, res, next) {
+  if (!req.session.usuario || req.session.usuario != '') {
+
+    console.log("No hay sesion ")
+    return res.redirect('/login.html');
+  } else {
+    console.log("Si hay sesion ")
+    next();
+  }
+}
+
+*/
+
+
+// Rutas protegidas por la validación de sesión
 app.get('/', (req, res) => {
   res.sendFile(__dirname + "/public/index2.html");
+
 });
+
 
 
 app.get('/ubicaciones', (req, res) => {
@@ -34,14 +88,24 @@ app.get('/ubicaciones', (req, res) => {
 
 });
 
+
+
+
+
+
+
 app.get('/api/sesion', (req, res) => {
   res.json({ usuario: req.session.usuario });
 });
+
+
+
 
 app.use(express.text());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+//app.listen(3000)
 httpServer.listen(3000);
 
 
@@ -60,6 +124,47 @@ io.on("connection", (socket) => {
 });
 
 /*
+
+function TomarYEnviarUbicaciones() {
+  TomarUbicacionesPorRatos()
+    .then(ubicaciones => {
+      const ubicacionesGuardados = ubicaciones;
+      io.sockets.emit("ubi:show", ubicacionesGuardados);
+    })
+    .catch(error => {
+      console.error("Error al tomar los mensajes de la base de datos:", error);
+    });
+}
+*/
+
+/*
+
+function TomarYEnviarUbicaciones() {
+  TomarUbicacionesPorRatos()
+    .then(ubicaciones => {
+      const ubicacionesGuardados = ubicaciones;
+      io.sockets.emit("ubi:show", ubicacionesGuardados);
+
+
+      ubicacionesGuardados.forEach(ubicacion => {
+        const latitud = parseFloat(ubicacion.Latitude);
+        const longitud = parseFloat(ubicacion.Longitude);
+        const velocidad = parseFloat(ubicacion.Speed); // Obtener velocidad de la ubicación
+
+
+        distanciaEntrePuntos(latitud, longitud, destinoLat, destinoLon);
+
+        // calcularDistanciaYTiempoConRuta(latitud, longitud, destinoLat, destinoLon, ruta);
+      });
+
+
+    })
+    .catch(error => {
+      console.error("Error al tomar los mensajes de la base de datos:", error);
+    });
+}
+*/
+
 function TomarYEnviarUbicaciones() {
   TomarUbicacionesPorRatos()
     .then(ubicaciones => {
@@ -69,7 +174,10 @@ function TomarYEnviarUbicaciones() {
       ubicacionesGuardados.forEach(ubicacion => {
         const latitud = parseFloat(ubicacion.Latitude);
         const longitud = parseFloat(ubicacion.Longitude);
-        const velocidad = parseFloat(ubicacion.Speed); 
+        const velocidad = parseFloat(ubicacion.Speed); // Obtener velocidad de la ubicación
+
+        // Calcular distancia y tiempo con respecto a la ruta
+     //  calcularDistanciaYTiempoConRuta(latitud, longitud, ruta);
       });
 
     })
@@ -93,196 +201,166 @@ function TomarUbicacionesPorRatos() {
     });
   });
 }
-*/
 
 
 /*
+const distanciaEntrePuntos = (lat1, lon1, lat2, lon2) => {
+  const radioTierra = 6371; // Radio de la Tierra en kilómetros
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distancia = radioTierra * c; // Distancia en kilómetros
+  return distancia;
+}
+*/
+// Coordenadas de destino
+  const destLat = 18.451889; // Latitud del punto de destino
+  const destLon = -97.398249; // Longitud del punto de destino
+//18.445694, -97.404463
+
+/*
+// Función para verificar si estamos cerca del destino
+const verificarCercaniaDestino = (lat, lon) => {
+  const distancia = distanciaEntrePuntos(lat, lon, destinoLat, destinoLon);
+  if (distancia <= 0.1) { // Ajusta este valor según la cercanía deseada en kilómetros
+      console.log("¡Estas cerca de casa!");
+  }
+}
+*/
+
+const verificarCercaniaDestino = (lat, lon, velocidadKmh) => {
+  const distancia = distanciaEntrePuntos(lat, lon, destinoLat, destinoLon);
+  const tiempoHoras = distancia / velocidadKmh; // Tiempo en horas
+
+  // Convertir horas a minutos y segundos
+  const tiempoMinutos = tiempoHoras * 60;
+  const tiempoSegundos = tiempoMinutos * 60;
+
+  if (distancia <= 0.1) { // Ajusta este valor según la cercanía deseada en kilómetros
+    console.log("¡Estás cerca de casa!");
+  } else {
+    //  console.log(`Tiempo estimado de llegada: ${tiempoHoras.toFixed(2)} horas (${tiempoMinutos.toFixed(2)} minutos / ${tiempoSegundos.toFixed(2)} segundos)`);
+  }
+}
+
+
 const googleMapsClient = require('@google/maps').createClient({
   key: 'AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ'
 });
-*/
-const googleMapsClient = require('@google/maps').createClient({
-    key: 'AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ', // Reemplaza con tu API Key de Google Maps
-    Promise: Promise
+
+
+const distanciaEntrePuntos = (lat1, lon1, lat2, lon2) => {
+  googleMapsClient.distanceMatrix({
+    origins: `${lat1},${lon1}`,
+    destinations: `${lat2},${lon2}`,
+    mode: 'driving'
+  }, (err, response) => {
+    if (!err) {
+      const distancia = response.json.rows[0].elements[0].distance.text;
+      const tiempo = response.json.rows[0].elements[0].duration.text;
+      console.log(`La distancia entre los puntos es ${distancia} y el tiempo estimado es ${tiempo}`);
+    } else {
+      console.error('Error al calcular la distancia y el tiempo:', err);
+    }
   });
-  
-  /*
-  async function calcularTiempoDeLlegada(latitud, longitud, ruta) {
-    const origen = `${latitud},${longitud}`;
-    const destino =  `${ruta[119].Latitude},${ruta[119].Longitude}`; // Tomar el primer punto de la ruta como destino
-  
-    try {
-      const response = await googleMapsClient.directions({
-        origin: origen,
-        destination: destino,
-        mode: 'driving' // Modo de transporte: en auto
-      }).asPromise();
-  
-      // Verificar si se encontró una ruta válida
-      if (response.json.status === 'OK') {
-        const tiempoEstimado = response.json.routes[0].legs[0].duration.text;
-        console.log(`Tiempo estimado de llegada: ${tiempoEstimado}`);
-      } else {
-        console.error('No se encontró una ruta válida.');
-      }
-    } catch (error) {
-      console.error('Error al calcular el tiempo de llegada:', error);
-    }
-  }
-  */
- 
-  
+}
+const DISTANCIA_MAXIMA = 0.1; // Definir la distancia máxima en kilómetros
+
+const calcularDistanciaYTiempoConRuta = (latitud, longitud, ruta) => {
 
 
-  /*
-  async function calcularTiempoDeLlegada(latitud, longitud, ruta) {
-    const origen = `${latitud},${longitud}`;
-    const destino = `${ruta[119].Latitude},${ruta[119].Longitude}`; // Tomar el primer punto de la ruta como destino
-  
-    try {
-      const response = await googleMapsClient.directions({
-        origin: origen,
-        destination: destino,
-        mode: 'driving' // Modo de transporte: en auto
-      }).asPromise();
-  
-      // Verificar si se encontró una ruta válida
-      if (response.json.status === 'OK') {
-        const tiempoEstimado = response.json.routes[0].legs[0].duration.text;
-        console.log(`Tiempo estimado de llegada: ${tiempoEstimado}`);
-      } else {
-        console.error('No se encontró una ruta válida.');
-      }
-    } catch (error) {
-      console.error('Error al calcular el tiempo de llegada:', error);
+  // Obtener un arreglo de índices de waypoints que ya no son necesarios
+  const indicesEliminar = [];
+  ruta.forEach((punto, index) => {
+    const distancia = calcularDistancia(latitud, longitud, parseFloat(punto.Latitude), parseFloat(punto.Longitude));
+    if (distancia < DISTANCIA_MAXIMA) { // Definir tu propia constante DISTANCIA_MAXIMA
+      indicesEliminar.push(index);
     }
-  }
-  
-  async function TomarYEnviarUbicaciones() {
-    try {
-      const ubicaciones = await TomarUbicacionesPorRatos();
-      const ubicacionesGuardados = ubicaciones;
-  
-      io.sockets.emit("ubi:show", ubicacionesGuardados);
-  
-      ubicacionesGuardados.forEach(ubicacion => {
-        const latitud = parseFloat(ubicacion.Latitude);
-        const longitud = parseFloat(ubicacion.Longitude);
-        const velocidad = parseFloat(ubicacion.Speed); // Obtener velocidad de la ubicación
-  
-        calcularTiempoDeLlegada(latitud, longitud, ruta);
-      });
-    } catch (error) {
-      console.error("Error al tomar los mensajes de la base de datos:", error);
+  });
+
+  // Eliminar los waypoints correspondientes de la ruta
+  indicesEliminar.reverse().forEach(index => {
+    ruta.splice(index, 1);
+  });
+
+  // Agregar la ubicación de destino a la ruta
+  ruta.push({ "Latitude": destLat.toString(), "Longitude": destLon.toString() });
+
+  // Crear un arreglo de waypoints con las coordenadas de la ruta
+  const waypoints = ruta.map(punto => `${punto.Latitude},${punto.Longitude}`).join('|');
+
+  googleMapsClient.directions({
+    origin: `${latitud},${longitud}`,
+    destination: `${destLat},${destLon}`,
+    waypoints: waypoints,
+    mode: 'driving'
+  }, (err, response) => {
+    if (!err) {
+      const distancia = response.json.routes[0].legs[0].distance.text;
+      const tiempo = response.json.routes[0].legs[0].duration.text;
+      console.log(`La distancia hasta el punto cercano a la ruta es ${distancia} y el tiempo estimado es ${tiempo}`);
+    } else {
+      console.error('Error al calcular la distancia y el tiempo:', err);
     }
-  }
+  });
+}
+
+const calcularDistancia = (lat1, lon1, lat2, lon2) => {
+  const radioTierra = 6371; // Radio de la Tierra en kilómetros
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distancia = radioTierra * c;
+  return distancia;
+};
+
+
+
+/*
+const calcularDistanciaYTiempoConRuta = (origenLat, origenLon, destinoLat, destinoLon, ruta) => {
+  const waypoints = ruta.map(punto => `${punto.Latitude},${punto.Longitude}`).join('|');
   
-  function TomarUbicacionesPorRatos() {
-    return new Promise((resolve, reject) => {
-      const query = "SELECT * FROM ubicaciones_forma ORDER BY ID DESC limit 1";
-  
-      connection.query(query, (error, results) => {
-        if (error) {
-          console.error("Error al ejecutar la consulta:", error);
-          reject(error);
-        } else {
-          resolve(results);
-        }
-      });
-    });
-  }
+  googleMapsClient.directions({
+    origin: `${origenLat},${origenLon}`,
+    destination: `${destinoLat},${destinoLon}`,
+    waypoints: `optimize:true|${waypoints}`,
+    mode: 'driving'
+  }, (err, response) => {
+    if (!err) {
+      const rutaOptima = response.json.routes[0];
+      const distancia = rutaOptima.legs.reduce((total, leg) => total + leg.distance.value, 0) / 1000; // Distancia en kilómetros
+      const tiempo = rutaOptima.legs.reduce((total, leg) => total + leg.duration.value, 0) / 60; // Tiempo en minutos
+      console.log(`La distancia siguiendo la ruta es ${distancia.toFixed(2)} km y el tiempo estimado es ${tiempo.toFixed(2)} minutos`);
+    } else {
+      console.error('Error al calcular la distancia y el tiempo con la ruta:', err);
+    }
+  });
+};
 */
-
-async function calcularTiempoDeLlegada(origen, destino) {
-    try {
-        const response = await googleMapsClient.directions({
-            origin: origen,
-            destination: destino,
-            mode: 'driving' // Modo de transporte: en auto
-        }).asPromise();
-
-        // Verificar si se encontró una ruta válida
-        if (response.json.status === 'OK') {
-            const tiempoEstimado = response.json.routes[0].legs[0].duration.text;
-            console.log(`Tiempo estimado de llegada: ${tiempoEstimado}`);
-        } else {
-            console.error('No se encontró una ruta válida.');
-        }
-    } catch (error) {
-        console.error('Error al calcular el tiempo de llegada:', error);
-    }
-}
-
-async function TomarYEnviarUbicaciones() {
-    try {
-        const ubicaciones = await TomarUbicacionesPorRatos();
-        const ubicacionesGuardados = ubicaciones;
-
-        io.sockets.emit("ubi:show", ubicacionesGuardados);
-
-        for (let i = 0; i < ubicacionesGuardados.length - 1; i++) {
-            const ubicacionActual = ubicacionesGuardados[i];
-            const ubicacionSiguiente = ubicacionesGuardados[i + 1];
-            const origen = `${ubicacionActual.Latitude},${ubicacionActual.Longitude}`;
-            const destino = `${ubicacionSiguiente.Latitude},${ubicacionSiguiente.Longitude}`;
-            
-            await calcularTiempoDeLlegada(origen, destino);
-        }
-
-        // Calcular tiempo de llegada al punto 119
-        const punto118 = ubicacionesGuardados[ubicacionesGuardados.length - 1];
-        const origen119 = `${punto118.Latitude},${punto118.Longitude}`;
-        const destino119 = `${ruta[119].Latitude},${ruta[119].Longitude}`;
-        await calcularTiempoDeLlegada(origen119, destino119);
-    } catch (error) {
-        console.error("Error al tomar los mensajes de la base de datos:", error);
-    }
-}
-
-function TomarUbicacionesPorRatos() {
-    return new Promise((resolve, reject) => {
-        const query = "SELECT * FROM ubicaciones_forma ORDER BY ID DESC limit 1";
-
-        connection.query(query, (error, results) => {
-            if (error) {
-                console.error("Error al ejecutar la consulta:", error);
-                reject(error);
-            } else {
-                resolve(results);
-            }
-        });
-    });
-}
-
-
-
-
-
-
-
 
 
 
 app.get('/mapaConSecuencia', (req, res) => {
     res.send('<html><head><title>Mapa con ruta</title><script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap" async defer loading="async"></script></head><body><div id="map" style="height: 100%; width: 100%;"></div><script>function initMap() { var map = new google.maps.Map(document.getElementById("map"), { zoom: 14, center: { lat: 18.451660, lng: -97.398060 } }); var pathCoordinates = ' + JSON.stringify(ruta.map(coord => ({ lat: parseFloat(coord.Latitude), lng: parseFloat(coord.Longitude) }))) + '; var path = new google.maps.Polyline({ path: pathCoordinates, geodesic: true, strokeColor: "#FF0000", strokeOpacity: 1.0, strokeWeight: 2 }); path.setMap(map); }</script></body></html>');
+  
   });
+  
+
+
 
 app.get('/mapaUbicaciones', (req, res) => {
+  //res.send('<html><head><title>Mapa con ruta</title><script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap" async defer loading="async"></script></head><body><div id="map" style="height: 100%; width: 100%;"></div><script>function initMap() { var map = new google.maps.Map(document.getElementById("map"), { zoom: 14, center: { lat: 18.451660, lng: -97.398060 } }); var pathCoordinates = ' + JSON.stringify(ruta.map(coord => ({ lat: parseFloat(coord.Latitude), lng: parseFloat(coord.Longitude) }))) + '; var path = new google.maps.Polyline({ path: pathCoordinates, geodesic: true, strokeColor: "#FF0000", strokeOpacity: 1.0, strokeWeight: 2 }); path.setMap(map); }</script></body></html>');
+
  res.sendFile(__dirname + "/public/mapa.html");
 
 });
-
-
-
-app.get('/route', (req, res) => {
-    // Tomar el elemento 120 del JSON
-    const elemento120 = ruta[119]; // Los índices de los arrays en JavaScript comienzan en 0
-    
-    res.json({ elemento120 });
-});
-
-
-
 
 
 const ruta =[
@@ -2053,15 +2131,192 @@ app.get('/mapaRuta', (req, res) => {
 });
 
 
+/*
+app.get('/mapa', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Mapa con ruta</title>
+            <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap" async defer></script>
+        </head>
+        <body>
+            <div id="map" style="height: 100%; width: 100%;"></div>
+            <script>
+                var ruta = ${JSON.stringify(ruta)};
+                var map;
+                var rutaIndex = 0;
+                var path;
+
+                function initMap() {
+                    map = new google.maps.Map(document.getElementById("map"), {
+                        zoom: 14,
+                        center: { lat: 18.451660, lng: -97.398060 }
+                    });
+
+                    path = new google.maps.Polyline({
+                        geodesic: true,
+                        strokeColor: "#FF0000",
+                        strokeOpacity: 1.0,
+                        strokeWeight: 2
+                    });
+
+                    dibujarRuta();
+                    mostrarUbicaciones();
+                }
+
+                function dibujarRuta() {
+                    var pathCoordinates = [];
+                    for (var i = 0; i < 20 && (rutaIndex + i) < ruta.length; i++) {
+                        pathCoordinates.push({
+                            lat: parseFloat(ruta[rutaIndex + i].Latitude),
+                            lng: parseFloat(ruta[rutaIndex + i].Longitude)
+                        });
+                        console.log("Elemento mostrado:", ruta[rutaIndex + i]);
+                    }
+                    path.setPath(pathCoordinates);
+                    path.setMap(map);
+                    rutaIndex++;
+                    if (rutaIndex + 20 < ruta.length) {
+                        setTimeout(dibujarRuta, 1000);
+                    }
+                }
+
+                function mostrarUbicaciones() {
+                    // Llamar a la función para obtener las ubicaciones
+                    TomarYEnviarUbicaciones()
+                        .then(ubicaciones => {
+                            ubicaciones.forEach(ubicacion => {
+                                // Obtener la latitud y longitud de la ubicación
+                                const latitud = parseFloat(ubicacion.Latitude);
+                                const longitud = parseFloat(ubicacion.Longitude);
+
+                                // Crear un marcador en el mapa para cada ubicación
+                                var marker = new google.maps.Marker({
+                                    position: { lat: latitud, lng: longitud },
+                                    map: map,
+                                    title: 'Ubicación'
+                                });
+                            });
+                        })
+                        .catch(error => {
+                            console.error("Error al obtener las ubicaciones:", error);
+                        });
+                }
+            </script>
+        </body>
+        </html>
+    `);
+});
+*/
+
+/*
+app.get('/mapa', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Mapa con ruta</title>
+            <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap" async defer></script>
+        </head>
+        <body>
+            <div id="map" style="height: 100%; width: 100%;"></div>
+            <script>
+                var ruta = ${JSON.stringify(ruta)};
+                var map;
+                var rutaIndex = 0;
+                var path;
+                
+                function initMap() {
+                    map = new google.maps.Map(document.getElementById("map"), {
+                        zoom: 14,
+                        center: { lat: 18.451660, lng: -97.398060 }
+                    });
+  
+                    path = new google.maps.Polyline({
+                        geodesic: true,
+                        strokeColor: "#FF0000",
+                        strokeOpacity: 1.0,
+                        strokeWeight: 2
+                    });
+  
+                    dibujarRuta();
+  
+                }
+  
+                function dibujarRuta() {
+                    var pathCoordinates = [];
+                    for (var i = 0; i < 20 && (rutaIndex + i) < ruta.length; i++) {
+                        pathCoordinates.push({
+                            lat: parseFloat(ruta[rutaIndex + i].Latitude),
+                            lng: parseFloat(ruta[rutaIndex + i].Longitude)
+                        });
+                        console.log("Elemento mostrado:", ruta[rutaIndex + i]);
+                    }
+                    path.setPath(pathCoordinates);
+                    path.setMap(map);
+                    rutaIndex++;
+                    if (rutaIndex + 20 < ruta.length) {
+                        setTimeout(dibujarRuta, 1000);
+                    }
+                }
+            </script>
+        </body>
+        </html>
+    `);
+  });
+  */
+
+
+/*
+io.on("connection", (socket) => {
+  console.log("Nueva conexion");
+
+
+
+  // Llama a la función para tomar los mensajes y maneja el resultado
+  TomarMensajesDeBD()
+    .then(mensajes => {
+      // Haces lo que quieras con los mensajes, por ejemplo, guardarlos en una variable
+      const mensajesGuardados = mensajes;
+      //  console.log("Mensajes guardados:", mensajesGuardados);
+      io.sockets.emit("chat:message", mensajesGuardados);
+    })
+    .catch(error => {
+      // Maneja cualquier error que pueda ocurrir durante la consulta
+      console.error("Error al tomar los mensajes de la base de datos:", error);
+    });
+
+
+  socket.on("client:newMessage", (data) => {
+    const titulo = data.titulo;
+    const mensajeTomado = data.mensaje;
+
+    EnviarDatosABD(titulo, mensajeTomado, socket);
+
+
+  });
+
+  socket.on("client:editarMensaje", (data) => {
+    const titulo = data.titulo;
+    const mensaje = data.mensaje;
+    const id = data.id;
+
+    EditarMensaje(titulo, mensaje, id)
+  });
 
 
 
 
+  socket.on("client:eliminarMensaje", (data) => {
+    const id = data.id;
+
+    EliminarMensaje(id)
+  });
 
 
 
+});
 
-//Clases de la version anterior de mensajes jeje
+*/
 
 function EliminarMensaje(id) {
   const query = "UPDATE mensajes SET status = 0 WHERE ID_mensaje = ?";
