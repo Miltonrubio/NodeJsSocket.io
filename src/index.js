@@ -59,139 +59,68 @@ io.on("connection", (socket) => {
   });
 });
 
-/*
-function TomarYEnviarUbicaciones() {
-  TomarUbicacionesPorRatos()
-    .then(ubicaciones => {
-      const ubicacionesGuardados = ubicaciones;
-      io.sockets.emit("ubi:show", ubicacionesGuardados);
-
-      ubicacionesGuardados.forEach(ubicacion => {
-        const latitud = parseFloat(ubicacion.Latitude);
-        const longitud = parseFloat(ubicacion.Longitude);
-        const velocidad = parseFloat(ubicacion.Speed); 
-      });
-
-    })
-    .catch(error => {
-      console.error("Error al tomar los mensajes de la base de datos:", error);
-    });
-}
-
-
-function TomarUbicacionesPorRatos() {
-  return new Promise((resolve, reject) => {
-    const query = "SELECT * FROM ubicaciones_forma ORDER BY ID DESC limit 1";
-
-    connection.query(query, (error, results) => {
-      if (error) {
-        console.error("Error al ejecutar la consulta:", error);
-        reject(error);
-      } else {
-        resolve(results);
-      }
-    });
-  });
-}
-*/
-
-
-/*
-const googleMapsClient = require('@google/maps').createClient({
-  key: 'AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ'
-});
-*/
 const googleMapsClient = require('@google/maps').createClient({
     key: 'AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ', // Reemplaza con tu API Key de Google Maps
     Promise: Promise
   });
-  
-  /*
-  async function calcularTiempoDeLlegada(latitud, longitud, ruta) {
-    const origen = `${latitud},${longitud}`;
-    const destino =  `${ruta[119].Latitude},${ruta[119].Longitude}`; // Tomar el primer punto de la ruta como destino
-  
-    try {
-      const response = await googleMapsClient.directions({
-        origin: origen,
-        destination: destino,
-        mode: 'driving' // Modo de transporte: en auto
-      }).asPromise();
-  
-      // Verificar si se encontró una ruta válida
-      if (response.json.status === 'OK') {
-        const tiempoEstimado = response.json.routes[0].legs[0].duration.text;
-        console.log(`Tiempo estimado de llegada: ${tiempoEstimado}`);
-      } else {
-        console.error('No se encontró una ruta válida.');
-      }
-    } catch (error) {
-      console.error('Error al calcular el tiempo de llegada:', error);
-    }
-  }
-  */
- 
-  
 
 
-  /*
-  async function calcularTiempoDeLlegada(latitud, longitud, ruta) {
-    const origen = `${latitud},${longitud}`;
-    const destino = `${ruta[119].Latitude},${ruta[119].Longitude}`; // Tomar el primer punto de la ruta como destino
+app.get('/mapa', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Mapa con ruta</title>
+            <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap" async defer></script>
+        </head>
+        <body>
+            <div id="map" style="height: 100%; width: 100%;"></div>
+            <script>
+                var ruta = ${JSON.stringify(ruta)};
+                var map;
+                var rutaIndex = 0;
+                var path;
+                
+                function initMap() {
+                    map = new google.maps.Map(document.getElementById("map"), {
+                        zoom: 14,
+                        center: { lat: 18.451660, lng: -97.398060 }
+                    });
   
-    try {
-      const response = await googleMapsClient.directions({
-        origin: origen,
-        destination: destino,
-        mode: 'driving' // Modo de transporte: en auto
-      }).asPromise();
+                    path = new google.maps.Polyline({
+                        geodesic: true,
+                        strokeColor: "#FF0000",
+                        strokeOpacity: 1.0,
+                        strokeWeight: 2
+                    });
   
-      // Verificar si se encontró una ruta válida
-      if (response.json.status === 'OK') {
-        const tiempoEstimado = response.json.routes[0].legs[0].duration.text;
-        console.log(`Tiempo estimado de llegada: ${tiempoEstimado}`);
-      } else {
-        console.error('No se encontró una ruta válida.');
-      }
-    } catch (error) {
-      console.error('Error al calcular el tiempo de llegada:', error);
-    }
-  }
+                    dibujarRuta();
   
-  async function TomarYEnviarUbicaciones() {
-    try {
-      const ubicaciones = await TomarUbicacionesPorRatos();
-      const ubicacionesGuardados = ubicaciones;
+                }
   
-      io.sockets.emit("ubi:show", ubicacionesGuardados);
-  
-      ubicacionesGuardados.forEach(ubicacion => {
-        const latitud = parseFloat(ubicacion.Latitude);
-        const longitud = parseFloat(ubicacion.Longitude);
-        const velocidad = parseFloat(ubicacion.Speed); // Obtener velocidad de la ubicación
-  
-        calcularTiempoDeLlegada(latitud, longitud, ruta);
-      });
-    } catch (error) {
-      console.error("Error al tomar los mensajes de la base de datos:", error);
-    }
-  }
-  
-  function TomarUbicacionesPorRatos() {
-    return new Promise((resolve, reject) => {
-      const query = "SELECT * FROM ubicaciones_forma ORDER BY ID DESC limit 1";
-  
-      connection.query(query, (error, results) => {
-        if (error) {
-          console.error("Error al ejecutar la consulta:", error);
-          reject(error);
-        } else {
-          resolve(results);
-        }
-      });
-    });
-  }
-*/
+                function dibujarRuta() {
+                    var pathCoordinates = [];
+                    for (var i = 0; i < 20 && (rutaIndex + i) < ruta.length; i++) {
+                        pathCoordinates.push({
+                            lat: parseFloat(ruta[rutaIndex + i].Latitude),
+                            lng: parseFloat(ruta[rutaIndex + i].Longitude)
+                        });
+                        console.log("Elemento mostrado:", ruta[rutaIndex + i]);
+                    }
+                    path.setPath(pathCoordinates);
+                    path.setMap(map);
+                    rutaIndex++;
+                    if (rutaIndex + 20 < ruta.length) {
+                        setTimeout(dibujarRuta, 1000);
+                    }
+                }
+            </script>
+        </body>
+        </html>
+    `);
+  });
+
+
+const puntosVisitados = {};
 
 async function calcularTiempoDeLlegada(origen, destino) {
     try {
@@ -207,8 +136,15 @@ async function calcularTiempoDeLlegada(origen, destino) {
             // Emitir el tiempo estimado a través del socket
             io.sockets.emit("tiempoEstimado", tiempoEstimado);
 
-            console.log("El tiempo estimado es " + tiempoEstimado)
+            console.log("El tiempo estimado es " + tiempoEstimado);
 
+            // Calcular la distancia entre el origen y el destino
+            const distancia = response.json.routes[0].legs[0].distance.value; // en metros
+
+            // Verificar si la distancia es menor o igual a 200 metros
+            if (distancia <= 200) {
+                console.log("¡Ya ha llegado al destino!");
+            }
         } else {
             console.error('No se encontró una ruta válida.');
             // Emitir el error a través del socket
@@ -222,7 +158,6 @@ async function calcularTiempoDeLlegada(origen, destino) {
     }
 }
 
-
 async function TomarYEnviarUbicaciones() {
     try {
         const ubicaciones = await TomarUbicacionesPorRatos();
@@ -235,8 +170,17 @@ async function TomarYEnviarUbicaciones() {
             const ubicacionSiguiente = ubicacionesGuardados[i + 1];
             const origen = `${ubicacionActual.Latitude},${ubicacionActual.Longitude}`;
             const destino = `${ubicacionSiguiente.Latitude},${ubicacionSiguiente.Longitude}`;
-            
+
+            // Verificar si ya ha pasado por esta ubicación
+            if (puntosVisitados[origen]) {
+                console.log("Ya pasó por esta zona");
+                continue; // Saltar al siguiente punto
+            }
+
             await calcularTiempoDeLlegada(origen, destino);
+
+            // Marcar el punto como visitado
+            puntosVisitados[origen] = true;
         }
 
         // Calcular tiempo de llegada al punto 119
@@ -244,6 +188,11 @@ async function TomarYEnviarUbicaciones() {
         const origen119 = `${punto118.Latitude},${punto118.Longitude}`;
         const destino119 = `${ruta[119].Latitude},${ruta[119].Longitude}`;
         await calcularTiempoDeLlegada(origen119, destino119);
+
+        // Verificar si ya ha pasado por el destino 119
+        if (puntosVisitados[destino119]) {
+            console.log("Ya pasó por el destino 119");
+        }
     } catch (error) {
         console.error("Error al tomar los mensajes de la base de datos:", error);
     }

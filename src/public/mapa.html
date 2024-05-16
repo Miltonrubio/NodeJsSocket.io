@@ -1726,8 +1726,82 @@
     var map, marker, rutaPath;
 
 
-    var rutaIndex = 0;
+    function initMap() {
+      var ubicacionInicial = { lat: 18.451660, lng: -97.398060 }; // Ubicación inicial del mapa
 
+      map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 14,
+        center: ubicacionInicial
+      });
+
+      // Crear el marcador para el vehículo
+      marker = new google.maps.Marker({
+        position: ubicacionInicial,
+        map: map
+      });
+
+      // Dibujar la ruta completa en el mapa
+      dibujarRutaCompleta();
+    }
+
+    function dibujarRutaCompleta() {
+      var pathCoordinates = ruta.map(ubicacion => ({
+        lat: parseFloat(ubicacion.Latitude),
+        lng: parseFloat(ubicacion.Longitude)
+      }));
+
+      rutaPath = new google.maps.Polyline({
+        path: pathCoordinates,
+        geodesic: true,
+        strokeColor: "#FF0000",
+        strokeOpacity: 1.0,
+        strokeWeight: 2,
+        map: map
+      });
+    }
+
+    socket.on('ubi:show', function (ubicaciones) {
+      // Obtener la última ubicación del vehículo
+      var ultimaUbicacion = ubicaciones[ubicaciones.length - 1];
+      var latitud = parseFloat(ultimaUbicacion.Latitude);
+      var longitud = parseFloat(ultimaUbicacion.Longitude);
+
+      // Actualizar la posición del marcador del vehículo
+      marker.setPosition({ lat: latitud, lng: longitud });
+
+      // Actualizar el centro del mapa para que se centre en la nueva ubicación del vehículo
+      map.setCenter({ lat: latitud, lng: longitud });
+
+      // Eliminar las ubicaciones de la ruta que ya han sido pasadas por el vehículo
+      eliminarUbicacionesPasadas(latitud, longitud);
+    });
+
+    function eliminarUbicacionesPasadas(latitudVehiculo, longitudVehiculo) {
+      // Recorrer la ruta y eliminar las ubicaciones que ya han sido pasadas por el vehículo
+      for (var i = 0; i < ruta.length; i++) {
+        var ubicacion = ruta[i];
+        var distancia = google.maps.geometry.spherical.computeDistanceBetween(
+          new google.maps.LatLng(latitudVehiculo, longitudVehiculo),
+          new google.maps.LatLng(parseFloat(ubicacion.Latitude), parseFloat(ubicacion.Longitude))
+        );
+
+        // Si la distancia es menor a un cierto umbral (por ejemplo, 50 metros), eliminar la ubicación de la ruta
+        if (distancia < 50) {
+          ruta.splice(0, i); // Eliminar las ubicaciones anteriores a la ubicación actual del vehículo
+          // Volver a dibujar la ruta con las ubicaciones restantes
+          rutaPath.setPath(ruta.map(ubicacion => ({
+            lat: parseFloat(ubicacion.Latitude),
+            lng: parseFloat(ubicacion.Longitude)
+          })));
+          break;
+        }
+      }
+    }
+
+
+
+
+    /*
     function initMap() {
       var ubicacionInicial = { lat: 18.451660, lng: -97.398060 }; // Puedes cambiar esto por una ubicación inicial
 
@@ -1782,7 +1856,7 @@
       // Centrar el mapa en la nueva ubicación
       map.setCenter(nuevaUbicacion);
     });
-
+*/
   </script>
   <script>
     /*
