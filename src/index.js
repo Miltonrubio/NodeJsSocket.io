@@ -10,12 +10,19 @@ const connection = require("./bdconfig");
 const session = require('express-session');
 
 const app = express();
+const cors = require('cors');
+
+const axios = require('axios');
 const httpServer = http.createServer(app);
 const io = new WebSocketServer(httpServer);
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(express.static(__dirname + "/public"));
+
+app.use(cors());
+
+
 
 
 app.post('/inicio', (req, res) => {
@@ -135,6 +142,93 @@ function TomarYEnviarUbicaciones() {
 }
 
 
+
+app.post('/route', async (req, res) => {
+    const { origin, destination, waypoints } = req.body;
+    try {
+        const route = await getGoogleRouteWithWaypoints(origin, destination, waypoints);
+        res.json(route);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+
+/*
+async function getGoogleRouteWithWaypoints(origin, destination, waypoints) {
+    const apiKey = "AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ";
+    const maxWaypoints = 23;
+    const segments = [];
+
+    for (let i = 0; i < waypoints.length; i += maxWaypoints) {
+        const segmentWaypoints = waypoints.slice(i, i + maxWaypoints);
+        const segmentOrigin = i === 0 ? origin : waypoints[i - 1].location;
+        const segmentDestination = i + maxWaypoints >= waypoints.length ? destination : segmentWaypoints[segmentWaypoints.length - 1].location;
+        segments.push({ origin: segmentOrigin, destination: segmentDestination, waypoints: segmentWaypoints });
+    }
+
+    const routes = [];
+    for (const segment of segments) {
+        let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${segment.origin}&destination=${segment.destination}&mode=driving&key=${apiKey}`;
+        if (segment.waypoints.length > 0) {
+            const waypointsString = segment.waypoints.map(wp => wp.location).join('|');
+            url += `&waypoints=optimize:true|${waypointsString}`;
+        }
+        const response = await axios.get(url);
+        routes.push(response.data);
+    }
+
+    // Combinar las rutas
+    const combinedRoute = {
+        routes: routes.flatMap(route => route.routes)
+    };
+
+    return combinedRoute;
+}
+*/
+
+async function getGoogleRouteWithWaypoints(origin, destination, waypoints) {
+    const apiKey = "AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ";
+    const maxWaypoints = 23;
+    const segments = [];
+
+    for (let i = 0; i < waypoints.length; i += maxWaypoints) {
+        const segmentWaypoints = waypoints.slice(i, i + maxWaypoints);
+        const segmentOrigin = i === 0 ? origin : waypoints[i - 1].location;
+        const segmentDestination = i + maxWaypoints >= waypoints.length ? destination : segmentWaypoints[segmentWaypoints.length - 1].location;
+        segments.push({ origin: segmentOrigin, destination: segmentDestination, waypoints: segmentWaypoints });
+    }
+
+    const routes = [];
+    const distances = [];
+    for (const segment of segments) {
+        let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${segment.origin}&destination=${segment.destination}&mode=driving&key=${apiKey}`;
+        if (segment.waypoints.length > 0) {
+            const waypointsString = segment.waypoints.map(wp => wp.location).join('|');
+            url += `&waypoints=optimize:true|${waypointsString}`;
+        }
+        const response = await axios.get(url);
+        const route = response.data.routes[0];
+
+        routes.push(route);
+        for (const leg of route.legs) {
+            distances.push(leg.distance);
+        }
+    }
+
+    // Combinar las rutas y las distancias
+    const combinedRoute = {
+        routes: routes,
+        distances: distances
+    };
+
+    return combinedRoute;
+}
+
+
+
+/*
 app.get('/mapa', (req, res) => {
     res.send(`
         <html>
@@ -227,7 +321,7 @@ async function calcularTiempoDeLlegada(origen, destino) {
         io.sockets.emit("errorRuta", error.message);
     }
 }
-
+*/
 
 /*
 async function TomarYEnviarUbicaciones() {
@@ -352,6 +446,10 @@ function TomarUbicacionesPorRatos() {
 
 
 
+app.get('/route2', async (req, res) => {
+
+    res.sendFile(__dirname + "/public/mapa2.html");
+    });
 
 
 
@@ -366,7 +464,7 @@ app.get('/mapaUbicaciones', (req, res) => {
 });
 
 
-
+/*
 app.get('/route', (req, res) => {
     // Tomar el elemento 120 del JSON
     const elemento120 = ruta[119]; // Los índices de los arrays en JavaScript comienzan en 0
@@ -374,7 +472,7 @@ app.get('/route', (req, res) => {
     res.json({ elemento120 });
 });
 
-
+*/
 
 
 

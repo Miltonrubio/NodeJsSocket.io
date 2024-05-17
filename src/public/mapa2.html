@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Ubicación en tiempo real</title>
+
+</head>
+
+<body>
+    <div id="divMap" style="height: 100vh; width: 100%"></div>
+
+
+
+
+    <script>
+
+
+        let map;
+        let markers = [];
+        let routePath;  // Variable para mantener la referencia al objeto Polyline
+
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('divMap'), {
+                center: { lat: 18.461323, lng: -97.4232072 },
+                zoom: 18
+            });
+
+            map.addListener('click', function (e) {
+                let marker = new google.maps.Marker({
+                    position: e.latLng,
+                    map: map,
+                    draggable: true
+                });
+                markers.push(marker);
+            });
+
+            const routeButton = document.createElement('button');
+            routeButton.textContent = 'Calcular Ruta';
+            routeButton.classList.add('custom-map-control-button');
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(routeButton);
+
+            routeButton.addEventListener('click', () => {
+                if (markers.length >= 2) {
+                    fetchRoute();
+                } else {
+                    alert('Añade al menos dos marcadores para calcular la ruta.');
+                }
+            });
+        }
+
+        async function fetchRoute() {
+            const origin = markers[0].getPosition().toUrlValue();
+            const destination = markers[markers.length - 1].getPosition().toUrlValue();
+            const waypoints = markers.slice(1, markers.length - 1).map(marker => ({
+                location: marker.getPosition().toUrlValue(),
+                stopover: true
+            }));
+
+            try {
+                const response = await fetch('http://http://192.168.1.67:3000/route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ origin, destination, waypoints })
+                });
+                const routeData = await response.json();
+
+                if (!routeData.routes || routeData.routes.length === 0) {
+                    console.error('No se encontró una ruta.');
+                    return;
+                }
+
+                if (routePath) {
+                    routePath.setMap(null);
+                }
+
+                const allPoints = routeData.routes.flatMap(route => google.maps.geometry.encoding.decodePath(route.overview_polyline.points));
+
+                routePath = new google.maps.Polyline({
+                    path: allPoints,
+                    geodesic: true,
+                    strokeColor: '#FF0000',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 2
+                });
+
+                routePath.setMap(map);
+            } catch (error) {
+                console.error('Error al obtener la ruta:', error);
+            }
+        }
+
+    </script>
+    
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkF9dXkDa3GjKlrLUdLc7BEx5031MELDQ&callback=initMap"
+  async defer loading="async"></script>
