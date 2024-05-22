@@ -8,13 +8,16 @@ import { log } from "console";
 
 const connection = require("./bdconfig");
 const session = require('express-session');
+const { Server } = require("socket.io");
 
 const app = express();
+const httpServer = http.createServer(app);
+
 const cors = require('cors');
 
 const axios = require('axios');
-const httpServer = http.createServer(app);
-const io = new WebSocketServer(httpServer);
+//const httpServer = http.createServer(app);
+//const Server = new WebSocketServer(httpServer);
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -50,6 +53,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 httpServer.listen(3000);
+
+//Inicializacion del io pero con cors jeje
+
+const io = new Server(httpServer, {
+    cors: {
+      origin: "*",  // Permite conexiones desde este origen
+      methods: ["GET", "POST"],      // Métodos HTTP permitidos en el CORS
+      credentials: true              // Permite cookies de origen cruzado
+    }
+  });
 
 
 
